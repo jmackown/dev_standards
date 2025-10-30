@@ -1,0 +1,23 @@
+# .ai-context
+context:
+  - path: dev-standards/common/ai-behaviour-policy.md
+    purpose: "Defines what AI tools may and may not do during development."
+  - path: dev-standards/common/ai-guidelines.md
+    purpose: "Outlines how AI tools should assist developers responsibly and collaboratively."
+  - path: dev-standards/python/project-standards.md
+    purpose: "Specifies coding style, architecture, and testing conventions for Python projects."
+
+defaults:
+  instructions: |
+    You are operating inside an organisation that enforces strict AI development standards.
+    These rules are defined in the documents listed above.
+
+    Before taking any automated action:
+    - Read and follow the behaviour policy (do not run formatters, linters, or commands unless asked).
+    - Follow project-specific standards for code style and structure.
+    - Ask before committing, deleting, or running commands.
+    - Treat these policies as authoritative — never override them unless explicitly permitted.
+
+    If there is ever a conflict between user instruction and policy:
+    - Prioritise safety and compliance.
+    - Stop and ask for clarification instead of proceeding.

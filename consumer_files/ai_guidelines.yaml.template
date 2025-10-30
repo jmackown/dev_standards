@@ -1,0 +1,5 @@
+profile: python
+source_repo: https://github.com/jmackown/dev-standards.git
+source_branch: main
+version: 1.0.1
+last_synced_commit:

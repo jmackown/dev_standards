@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Pre-push hook for semantic versioning
+# This hook runs automatically when you push to the main branch
+
+# Only run on pushes to main branch
+protected_branch='main'
+current_branch=$(git branch --show-current)
+
+if [[ "$current_branch" != "$protected_branch" ]]; then
+    exit 0
+fi
+
+echo "🏷️  Checking for version bump..."
+
+# Get the current version
+if [[ -f "VERSION" ]]; then
+    CURRENT_VERSION=$(cat VERSION)
+else
+    CURRENT_VERSION="0.0.0"
+fi
+
+echo "Current version: $CURRENT_VERSION"
+
+# Get the last tag (if any)
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+if [[ -z "$LAST_TAG" ]]; then
+    LAST_TAG="v0.0.0"
+fi
+
+# Get commits since last tag
+COMMITS_SINCE_TAG=$(git log "${LAST_TAG}..HEAD" --oneline 2>/dev/null || git log --oneline)
+
+if [[ -z "$COMMITS_SINCE_TAG" ]]; then
+    echo "No new commits since last tag"
+    exit 0
+fi
+
+echo "Commits since $LAST_TAG:"
+echo "$COMMITS_SINCE_TAG"
+
+# Parse semantic version
+IFS='.' read -r MAJOR MINOR PATCH <<< "${CURRENT_VERSION}"
+
+# Analyze commits for version bump type
+BUMP_TYPE="none"
+
+# Check for breaking changes (major version bump)
+if echo "$COMMITS_SINCE_TAG" | grep -E "(BREAKING CHANGE|!:)" >/dev/null; then
+    BUMP_TYPE="major"
+# Check for features (minor version bump)  
+elif echo "$COMMITS_SINCE_TAG" | grep -E "^[a-f0-9]+ feat(\(.+\))?:" >/dev/null; then
+    BUMP_TYPE="minor"
+# Check for fixes (patch version bump)
+elif echo "$COMMITS_SINCE_TAG" | grep -E "^[a-f0-9]+ fix(\(.+\))?:" >/dev/null; then
+    BUMP_TYPE="patch"
+# Check for any other conventional commits
+elif echo "$COMMITS_SINCE_TAG" | grep -E "^[a-f0-9]+ (chore|docs|style|refactor|test)(\(.+\))?:" >/dev/null; then
+    BUMP_TYPE="patch"
+fi
+
+if [[ "$BUMP_TYPE" == "none" ]]; then
+    echo "No conventional commits found, skipping version bump"
+    exit 0
+fi
+
+# Calculate new version
+case $BUMP_TYPE in
+    major)
+        NEW_MAJOR=$((MAJOR + 1))
+        NEW_MINOR=0
+        NEW_PATCH=0
+        ;;
+    minor)
+        NEW_MAJOR=$MAJOR
+        NEW_MINOR=$((MINOR + 1))
+        NEW_PATCH=0
+        ;;
+    patch)
+        NEW_MAJOR=$MAJOR
+        NEW_MINOR=$MINOR
+        NEW_PATCH=$((PATCH + 1))
+        ;;
+esac
+
+NEW_VERSION="${NEW_MAJOR}.${NEW_MINOR}.${NEW_PATCH}"
+NEW_TAG="v${NEW_VERSION}"
+
+echo "🔄 Bumping version: $CURRENT_VERSION → $NEW_VERSION (${BUMP_TYPE})"
+
+# Update VERSION file
+echo "$NEW_VERSION" > VERSION
+
+# Update version in template file
+if [[ -f "consumer_files/ai_guidelines.yaml.template" ]]; then
+    if grep -q "^version:" "consumer_files/ai_guidelines.yaml.template"; then
+        sed -i '' "s/^version:.*$/version: ${NEW_VERSION}/" "consumer_files/ai_guidelines.yaml.template"
+    else
+        echo "version: ${NEW_VERSION}" >> "consumer_files/ai_guidelines.yaml.template"
+    fi
+fi
+
+# Commit the version changes
+git add VERSION
+if [[ -f "consumer_files/ai_guidelines.yaml.template" ]]; then
+    git add consumer_files/ai_guidelines.yaml.template
+fi
+
+git commit -m "chore: bump version to ${NEW_VERSION}
+
+🤖 Generated with Claude Code
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+# Create and push the tag
+git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
+
+echo "✅ Created version $NEW_TAG"
+echo "📌 Version will be pushed with your changes"
+
+# The actual push will happen after this hook completes
