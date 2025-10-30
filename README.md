@@ -3,6 +3,8 @@
 This repository defines the shared **developer standards and AI usage policies** for all projects across the organisation.  
 It ensures humans and AI assistants follow consistent, safe, and high-quality engineering practices.
 
+For more words: read this [blog post here](https://jcmc.dev/posts/2025/10/dev_standards/).
+
 ---
 
 ## 🧩 Repository Structure
